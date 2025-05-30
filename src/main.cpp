@@ -13,7 +13,13 @@ int main() {
       SDL_CreateWindow("It is like being in a dream...", 800, 600, 0);
   SDL_Renderer *main_renderer = SDL_CreateRenderer(window, NULL);
 
+  float now = SDL_GetPerformanceCounter();
+  float last = 0;
+  float dt = 0;
+
   bool window_is_open = true;
+  float fps_timer = 0;
+  float frames = 0;
 
   while (window_is_open) {
 
@@ -28,8 +34,20 @@ int main() {
       }
     }
 
+    /* Update DT */
+    last = now;
+    now = SDL_GetPerformanceCounter();
+    dt = ((now - last)) / SDL_GetPerformanceFrequency();
+    frames++;
+    fps_timer += dt;
+    if (fps_timer > 1) {
+      std::cout << "FPS: " << frames << std::endl;
+      fps_timer -= 1;
+      frames = 0;
+    }
+
     /* Update */
-    cur_state->update(0.01);
+    cur_state->update(dt);
 
     /* Draw */
     SDL_SetRenderDrawColor(main_renderer, 255, 255, 255, 255);

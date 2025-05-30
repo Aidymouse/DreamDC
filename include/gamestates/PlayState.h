@@ -2,11 +2,13 @@
 
 #include <SDL3/SDL.h>
 #include <engine/GameState.h>
+#include <engine/Player.h>
 #include <engine/Raycaster.h>
 
 class PlayState : public GameState {
   Raycaster main_raycaster;
   LevelData test_level;
+  Player main_player;
 
 public:
   PlayState();

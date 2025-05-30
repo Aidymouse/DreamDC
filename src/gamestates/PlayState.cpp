@@ -14,8 +14,8 @@ void PlayState::update(float dt) {}
 void PlayState::draw(SDL_Renderer *renderer) {
 
   RaycastCamera c(120);
-  c.pos.x = 250;
-  c.pos.y = 250;
+  c.pos.x = 1.5;
+  c.pos.y = 1.5;
 
   main_raycaster.render_level(&test_level, c, renderer);
 }

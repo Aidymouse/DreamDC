@@ -5,11 +5,11 @@
 #include <util/Vec2.hpp>
 
 /** Distance from player position to camera plane
- * Set so that there are 10 units between camera and an adjacent wall, if you're
- * in the center of a space
+ * Set so that there are 0.1 units between camera and an adjacent wall, if
+ * you're in the center of a space
  * */
 
-#define PLANE_DIST 40
+#define PLANE_DIST 0.4
 
 class RaycastCamera {
 public:
