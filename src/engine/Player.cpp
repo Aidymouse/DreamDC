@@ -15,10 +15,8 @@ void Player::key_down(SDL_KeyboardEvent *event) {
   if (movement_state == MOVEMENT_STATES::STILL &&
       turning_state == TURNING_STATES::STILL) {
     if (event->key == SDLK_W) {
-      std::cout << "Checking movement" << std::endl;
       movement_state = MOVEMENT_STATES::TRANSLATING;
       destination = pos + dir;
-      std::cout << "dest x: " << dir.x << ", y:" << dir.y << std::endl;
     }
 
     if (event->key == SDLK_D) {
@@ -88,7 +86,6 @@ void Player::update(float dt) {
   if (turning_state == TURNING_STATES::TURNING) {
     float turn_amnt = turn_speed * turn_dir * dt;
     dir.rotate(turn_amnt);
-    angle += turn_amnt;
 
     if (dist_to_desired_angle(angle, desired_angle, turn_dir) <
         std::abs(turn_amnt)) {
@@ -96,8 +93,9 @@ void Player::update(float dt) {
       // Ensure cardinal TODO: derive from angle
       dir.x = std::round(dir.x);
       dir.y = std::round(dir.y);
-      std::cout << "No longer turning" << std::endl;
       turning_state = TURNING_STATES::STILL;
+    } else {
+      angle += turn_amnt;
     }
   }
 }

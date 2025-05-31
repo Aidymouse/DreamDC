@@ -2,16 +2,23 @@
 #include <iostream>
 
 #include <engine/GameState.h>
+#include <engine/TextureStore.hpp>
 #include <gamestates/PlayState.h>
 #include <memory>
 
 std::shared_ptr<GameState> cur_state = std::make_shared<PlayState>();
+
+TextureStore &texture_store = TextureStore::getInstance();
 
 int main() {
   /** Set up window */
   SDL_Window *window =
       SDL_CreateWindow("It is like being in a dream...", 800, 600, 0);
   SDL_Renderer *main_renderer = SDL_CreateRenderer(window, NULL);
+
+  texture_store.load_texture("../graphics/bluestone.bmp", "bluestone",
+                             main_renderer);
+  texture_store.load_texture("../graphics/test.bmp", "test", main_renderer);
 
   float now = SDL_GetPerformanceCounter();
   float last = 0;
@@ -43,7 +50,7 @@ int main() {
     frames++;
     fps_timer += dt;
     if (fps_timer > 1) {
-      std::cout << "FPS: " << frames << std::endl;
+      // std::cout << "FPS: " << frames << std::endl;
       fps_timer -= 1;
       frames = 0;
     }
@@ -64,6 +71,8 @@ int main() {
 
     SDL_RenderPresent(main_renderer);
   }
+
+  texture_store.destroy_textures();
 
   return 0;
 }

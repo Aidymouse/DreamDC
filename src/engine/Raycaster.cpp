@@ -2,18 +2,52 @@
 #include <cmath>
 #include <engine/LevelData.h>
 #include <engine/Raycaster.h>
+#include <engine/TextureStore.hpp>
 #include <iostream>
 
 #define screenscale 100.f // size at which debug stuff is drawn to the screen
 
+TextureStore &texture_store_r = TextureStore::getInstance();
+
 const bool DEBUG = false;
+const int debug_x = 200;
 
 void Raycaster::render_level(LevelData *level_data, RaycastCamera camera,
                              SDL_Renderer *renderer) {
 
   //
   // Vec2 plane(PLANE_WIDTH, 0);
+  SDL_Texture *blue = texture_store_r.get("bluestone");
 
+  /** Floor Casting */
+  // 600 is the screen height
+  // Kinda doesnt work.. bleh...
+  for (int screenY = 600; screenY >= 0; screenY--) {
+    Vec2 rayDirOne = (camera.dir * PLANE_DIST) - camera.plane;
+    Vec2 rayDirTwo = (camera.dir * PLANE_DIST) + camera.plane;
+
+    float yRelative = screenY - 600 / 2;
+    float zPos = 0.5 * 600; // change for heights
+                            //
+    float rowDist = zPos / yRelative;
+
+    Vec2 floorStep(rowDist * (rayDirTwo.x - rayDirOne.x) / 800,
+                   rowDist * (rayDirTwo.y - rayDirOne.y) / 800);
+
+    Vec2 floor = camera.pos + (rayDirOne * rowDist);
+    for (int screenX = 0; screenX < 800; screenX++) {
+      Vec2 mapCell((int)floor.x, (int)floor.y);
+      Vec2 texCoords((int)(100 * (floor.x - mapCell.x)) & (100 - 1),
+                     (int)(100 * (floor.y - mapCell.y)) & (100 - 1));
+      floor += floorStep;
+
+      SDL_FRect texel = {texCoords.x, texCoords.y, 1, 1};
+      SDL_FRect draw = {screenX, screenY, 1, 1};
+      SDL_RenderTexture(renderer, blue, &texel, &draw);
+    }
+  }
+
+  // WALLS
   for (int screenX = 0; screenX < 800; screenX++) {
     float cameraX = 2 * (screenX / 800.f) - 1;
     // Got to rememebr plane dist! Because dir is normalized
@@ -79,11 +113,36 @@ void Raycaster::render_level(LevelData *level_data, RaycastCamera camera,
     if (hit == -1)
       continue;
 
-    float perpWallDist = distToGridX < distToGridY ? distToGridX : distToGridY;
+    int side = distToGridX < distToGridY
+                   ? 1
+                   : 0; // 1 = X hit (hit column), 0 = y hit (hit row)
+    float perpWallDist = side == 1 ? distToGridX : distToGridY;
+
+    Vec2 wallPoint =
+        camera.pos + (rayDir * (side == 1 ? distToGridX : distToGridY));
+
+    // TODO: make it tex width
+    int texX = (side == 1 ? wallPoint.y - floor(wallPoint.y)
+                          : wallPoint.x - floor(wallPoint.x)) *
+               100;
+
+    if (screenX == debug_x) {
+      std::cout << "side " << side << std::endl;
+      std::cout << "tex x " << texX << std::endl;
+      std::cout << wallPoint.x << ", " << wallPoint.y << std::endl;
+    }
+
+    // std::cout << wallPoint.x << ", "
+    // << wallPoint.y << std::endl;
 
     int line_height = 600 / perpWallDist;
-    SDL_RenderLine(renderer, screenX, 300 - line_height / 2, screenX,
-                   300 + line_height / 2);
+    SDL_FRect src = {texX, 0, texX, 100};
+    SDL_FRect strip = {screenX, 300 - (line_height / 2), 1, line_height};
+    SDL_RenderTexture(renderer, blue, &src, &strip);
+
+    // SDL_RenderTexture();
+    // SDL_RenderLine(renderer, screenX, 300 - line_height / 2, screenX,
+    //                300 + line_height / 2);
 
     if (DEBUG) {
       for (int row = 0; row < 5; row++) {
@@ -98,14 +157,20 @@ void Raycaster::render_level(LevelData *level_data, RaycastCamera camera,
       //  if (distToGridX < distToGridY) perpWallDist = (distToGridX -
       //  gridDeltaDistX)
 
-      // Vec2 screenPos = camera.pos * screenscale;
-      // SDL_RenderLine(renderer, screenPos.x, screenPos.y,
-      //                screenPos.x + rayDir.x * std::min(distToGridY,
-      //                distToGridX) *
-      //                                  screenscale,
-      //                screenPos.y + rayDir.y * std::min(distToGridY,
-      //                distToGridX) *
-      //                                  screenscale);
+      if (screenX == debug_x) {
+        SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+        Vec2 screenPos = camera.pos * screenscale;
+        SDL_RenderLine(
+            renderer, screenPos.x, screenPos.y,
+            screenPos.x +
+                rayDir.x * std::min(distToGridY, distToGridX) * screenscale,
+            screenPos.y +
+                rayDir.y * std::min(distToGridY, distToGridX) * screenscale);
+      }
+
+      if (screenX == debug_x) {
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+      }
     }
   }
 }
