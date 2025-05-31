@@ -11,13 +11,14 @@ Player::Player() {
 }
 
 void Player::key_down(SDL_KeyboardEvent *event) {
-  std::cout << event->key << std::endl;
 
   if (movement_state == MOVEMENT_STATES::STILL &&
       turning_state == TURNING_STATES::STILL) {
     if (event->key == SDLK_W) {
+      std::cout << "Checking movement" << std::endl;
       movement_state = MOVEMENT_STATES::TRANSLATING;
       destination = pos + dir;
+      std::cout << "dest x: " << dir.x << ", y:" << dir.y << std::endl;
     }
 
     if (event->key == SDLK_D) {
@@ -39,15 +40,17 @@ void Player::key_down(SDL_KeyboardEvent *event) {
     if (event->key == SDLK_E) {
       turning_state = TURNING_STATES::TURNING;
       desired_angle += 90;
-      desired_angle = std::fmod(desired_angle, 360);
       turn_dir = 1;
     }
     if (event->key == SDLK_Q) {
       turning_state = TURNING_STATES::TURNING;
       desired_angle -= 90;
-      desired_angle = std::fmod(desired_angle, 360);
       turn_dir = -1;
     }
+    if (desired_angle < 0)
+      desired_angle += 360;
+    if (desired_angle >= 360)
+      desired_angle -= 360;
   }
 }
 
@@ -64,21 +67,22 @@ float dist_to_desired_angle(float angle, float desired_angle, int turn_dir) {
   if (dist > 360)
     dist -= 360;
 
+  // std::cout << dist << std::endl;
   return dist;
 }
 
 void Player::update(float dt) {
   if (movement_state == MOVEMENT_STATES::TRANSLATING) {
     Vec2 move_dir = destination - pos;
-    std::cout << "destination: " << destination.x << ", " << destination.y
-              << std::endl;
+    // std::cout << "destination: " << destination.x << ", " << destination.y
+    //           << std::endl;
     pos += move_dir.normalized() * move_speed * dt;
     if (move_dir.get_magnitude() < 0.01) {
       pos.x = destination.x;
       pos.y = destination.y;
       movement_state = MOVEMENT_STATES::STILL;
     }
-    std::cout << "x: " << pos.x << ", y: " << pos.y << std::endl;
+    // std::cout << "x: " << pos.x << ", y: " << pos.y << std::endl;
   }
 
   if (turning_state == TURNING_STATES::TURNING) {
@@ -89,8 +93,10 @@ void Player::update(float dt) {
     if (dist_to_desired_angle(angle, desired_angle, turn_dir) <
         std::abs(turn_amnt)) {
       angle = desired_angle;
-      dir.x -= std::fmod(dir.x, 1);
-      dir.y -= std::fmod(dir.y, 1);
+      // Ensure cardinal TODO: derive from angle
+      dir.x = std::round(dir.x);
+      dir.y = std::round(dir.y);
+      std::cout << "No longer turning" << std::endl;
       turning_state = TURNING_STATES::STILL;
     }
   }

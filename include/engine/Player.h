@@ -4,8 +4,8 @@
 #include <engine/Raycaster.h>
 #include <util/Vec2.hpp>
 
-enum class MOVEMENT_STATES { TRANSLATING, STILL };
-enum class TURNING_STATES { TURNING, STILL };
+enum class MOVEMENT_STATES { TRANSLATING = 0, STILL = 1 };
+enum class TURNING_STATES { TURNING = 0, STILL = 1 };
 
 class Player {
   MOVEMENT_STATES movement_state = MOVEMENT_STATES::STILL;
@@ -16,12 +16,12 @@ class Player {
   float angle = 0; // angle should really be found from dir but w/e
 
   /* Moving & Turning */
-  float move_speed = 20;
+  float move_speed = 10;
   Vec2 destination;
 
   /* Turning */
   float turn_speed = 600;
-  float turn_dir = 1; // 1 = clockwise
+  float turn_dir = 1; // 1 = clockwise, -1 = anticlockwise
   float desired_angle = 0;
 
 public:
