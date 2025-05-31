@@ -31,6 +31,8 @@ int main() {
         window_is_open = false;
       } else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
         // cur_state->handle_click(&event);
+      } else if (event.type == SDL_EVENT_KEY_DOWN) {
+        cur_state->key_down(&event.key);
       }
     }
 

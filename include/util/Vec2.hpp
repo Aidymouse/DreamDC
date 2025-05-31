@@ -79,11 +79,11 @@ public:
 
   /** Rotation */
   void rotate_rad(float r) {
-    float newX = std::cos(r) * x + std::sin(r) * y;
-    if (abs(newX) < 0.0001)
+    float newX = std::cos(r) * x + -std::sin(r) * y;
+    if (std::abs(newX) < 0.0001)
       newX = 0;
     float newY = std::sin(r) * x + std::cos(r) * y;
-    if (abs(newY) < 0.0001)
+    if (std::abs(newY) < 0.0001)
       newY = 0;
     x = newX;
     y = newY;
@@ -92,11 +92,11 @@ public:
   void rotate(float degrees) { rotate_rad(degrees * 0.01745329); }
 
   Vec2 rotated_rad(float r) {
-    float newX = std::cos(r) * x + std::sin(r) * y;
-    if (abs(newX) < 0.0001)
+    float newX = std::cos(r) * x + -std::sin(r) * y;
+    if (std::abs(newX) < 0.0001)
       newX = 0;
     float newY = std::sin(r) * x + std::cos(r) * y;
-    if (abs(newY) < 0.0001)
+    if (std::abs(newY) < 0.0001)
       newY = 0;
     return Vec2(newX, newY);
   }

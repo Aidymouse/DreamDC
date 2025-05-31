@@ -12,6 +12,7 @@ class PlayState : public GameState {
 
 public:
   PlayState();
+  virtual void key_down(SDL_KeyboardEvent *event) override;
   virtual void update(float dt) override;
   virtual void draw(SDL_Renderer *renderer) override;
 };
