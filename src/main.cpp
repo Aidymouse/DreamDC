@@ -5,6 +5,7 @@
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan.h>
 
+#include <cstring>
 #include <util/Files.hpp>
 
 #include <algorithm>
@@ -17,9 +18,33 @@
 const int WINDOW_WIDTH = 800;
 const int WINDOW_HEIGHT = 600;
 
-/** TODO: Validation Layers */
-// const std::vector<const char *> validation_layers = {
-//     "VK_LAYER_KHRONOS_validation"};
+const std::vector<const char *> validation_layers = {
+    "VK_LAYER_KHRONOS_validation"};
+
+bool enable_validation_layers = true;
+
+bool check_validation_layer_support() {
+  uint32_t layer_count;
+  vkEnumerateInstanceLayerProperties(&layer_count, nullptr);
+  std::vector<VkLayerProperties> available_layers(layer_count);
+  vkEnumerateInstanceLayerProperties(&layer_count, available_layers.data());
+
+  for (const char *layer_name : validation_layers) {
+    bool layer_found = false;
+    for (const auto &layer_properties : available_layers) {
+      if (strcmp(layer_name, layer_properties.layerName) == 0) {
+        layer_found = true;
+        break;
+      }
+    }
+
+    if (!layer_found) {
+      return false;
+    }
+  }
+
+  return true;
+}
 
 /** Queue Families */
 struct QueueFamilyIndices {
@@ -208,6 +233,7 @@ void recordCommand(VkCommandBuffer buffer, uint32_t img_idx,
 }
 
 int main() {
+  /** Validation Layers */
   /** Create Window */
   glfwInit();
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -218,6 +244,10 @@ int main() {
                        "It is like being in a dream...", nullptr, nullptr);
 
   /** Init Vulkan Instance */
+  if (enable_validation_layers && !check_validation_layer_support()) {
+    throw std::runtime_error("Validation layers not supported");
+  }
+  std::cout << "Validation Layers confirmed" << std::endl;
   VkInstance main_vk;
 
   VkApplicationInfo app_info{};
@@ -231,6 +261,13 @@ int main() {
   VkInstanceCreateInfo inst_create_info{};
   inst_create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
   inst_create_info.pApplicationInfo = &app_info;
+  if (enable_validation_layers) {
+    inst_create_info.enabledLayerCount =
+        static_cast<uint32_t>(validation_layers.size());
+    inst_create_info.ppEnabledLayerNames = validation_layers.data();
+  } else {
+    inst_create_info.enabledLayerCount = 0;
+  }
 
   // Extensions for instance
   uint32_t glfw_ext_cn = 0;
@@ -300,6 +337,7 @@ int main() {
   log_dev_create_info.pQueueCreateInfos = q_create_infos.data();
   log_dev_create_info.queueCreateInfoCount = 1;
   log_dev_create_info.pEnabledFeatures = &dev_features;
+  //
   // Enabled extensions
   log_dev_create_info.enabledExtensionCount =
       static_cast<uint32_t>(req_dev_ext.size());
@@ -476,9 +514,9 @@ int main() {
   vertex_input_ci.sType =
       VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
   vertex_input_ci.vertexBindingDescriptionCount = 0;
-  vertex_input_ci.pVertexBindingDescriptions = nullptr;
+  // vertex_input_ci.pVertexBindingDescriptions = nullptr;
   vertex_input_ci.vertexAttributeDescriptionCount = 0;
-  vertex_input_ci.pVertexAttributeDescriptions = nullptr;
+  // vertex_input_ci.pVertexAttributeDescriptions = nullptr;
 
   // Dynamic State
   VkPipelineDynamicStateCreateInfo dynamic_ci{};
@@ -582,7 +620,7 @@ int main() {
   pipeline_ci.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
   pipeline_ci.stageCount = 2;
   pipeline_ci.pStages = shade_stages_cis;
-  pipeline_ci.pVertexInputState = &vertex_input_ci;
+  // pipeline_ci.pVertexInputState = &vertex_input_ci;
   pipeline_ci.pInputAssemblyState = &input_assembly_ci;
   pipeline_ci.pViewportState = &viewport_state_ci;
   pipeline_ci.pRasterizationState = &rasterizer_ci;
