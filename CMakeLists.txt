@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.28)
 project(DreamDC LANGUAGES CXX VERSION 0.0.1)
 
 find_package(Vulkan REQUIRED)
-find_package(glfw REQUIRED)
+find_package(glfw3 REQUIRED)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS true)
 
@@ -16,3 +16,5 @@ target_include_directories(DreamDC PUBLIC
 
 add_subdirectory(src)
 
+target_link_libraries(DreamDC PRIVATE Vulkan::Vulkan)
+target_link_libraries(DreamDC PRIVATE glfw)
