@@ -21,7 +21,7 @@ const int WINDOW_HEIGHT = 600;
 const std::vector<const char *> validation_layers = {
     "VK_LAYER_KHRONOS_validation"};
 
-bool enable_validation_layers = true;
+bool enable_validation_layers = false;
 
 bool check_validation_layer_support() {
   uint32_t layer_count;
@@ -480,8 +480,8 @@ int main() {
   render_pass_ci.pAttachments = &color_attachment;
   render_pass_ci.subpassCount = 1;
   render_pass_ci.pSubpasses = &subpass;
-  // render_pass_ci.dependencyCount = 1;
-  // render_pass_ci.pDependencies = &dep;
+  render_pass_ci.dependencyCount = 1;
+  render_pass_ci.pDependencies = &dep;
 
   vkCreateRenderPass(log_dev, &render_pass_ci, nullptr, &render_pass);
 
@@ -509,7 +509,7 @@ int main() {
   VkPipelineShaderStageCreateInfo shade_stages_cis[] = {vert_shader_ci,
                                                         frag_shader_ci};
 
-  // Vertex Stage
+  // Vertex Input
   VkPipelineVertexInputStateCreateInfo vertex_input_ci;
   vertex_input_ci.sType =
       VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -569,6 +569,7 @@ int main() {
   rasterizer_ci.depthBiasClamp = 0.0f;
   rasterizer_ci.depthBiasSlopeFactor = 0.0f;
 
+  // Multisampling
   VkPipelineMultisampleStateCreateInfo multisampling_ci{};
   multisampling_ci.sType =
       VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
@@ -584,14 +585,14 @@ int main() {
       VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
       VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
   // Configured to enable alpha blending
-  color_blend_attachment.blendEnable = VK_TRUE;
-  color_blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-  color_blend_attachment.dstColorBlendFactor =
-      VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-  color_blend_attachment.colorBlendOp = VK_BLEND_OP_ADD;
-  color_blend_attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-  color_blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-  color_blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
+  color_blend_attachment.blendEnable = VK_FALSE;
+  // color_blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+  // color_blend_attachment.dstColorBlendFactor =
+  //     VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+  // color_blend_attachment.colorBlendOp = VK_BLEND_OP_ADD;
+  // color_blend_attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+  // color_blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+  // color_blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
 
   VkPipelineColorBlendStateCreateInfo color_blend_ci{};
   color_blend_ci.sType =
@@ -613,14 +614,16 @@ int main() {
   pipeline_layout_ci.pSetLayouts = nullptr;
   pipeline_layout_ci.pushConstantRangeCount = 0;
   pipeline_layout_ci.pPushConstantRanges = nullptr;
-  vkCreatePipelineLayout(log_dev, &pipeline_layout_ci, nullptr,
-                         &pipeline_layout);
+  if (vkCreatePipelineLayout(log_dev, &pipeline_layout_ci, nullptr,
+                             &pipeline_layout) != VK_SUCCESS) {
+    throw std::runtime_error("Failed to make pipeline layout");
+  }
 
   VkGraphicsPipelineCreateInfo pipeline_ci{};
   pipeline_ci.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
   pipeline_ci.stageCount = 2;
   pipeline_ci.pStages = shade_stages_cis;
-  // pipeline_ci.pVertexInputState = &vertex_input_ci;
+  pipeline_ci.pVertexInputState = &vertex_input_ci;
   pipeline_ci.pInputAssemblyState = &input_assembly_ci;
   pipeline_ci.pViewportState = &viewport_state_ci;
   pipeline_ci.pRasterizationState = &rasterizer_ci;
@@ -635,7 +638,7 @@ int main() {
   VkPipeline graphics_pipeline;
   if (vkCreateGraphicsPipelines(log_dev, VK_NULL_HANDLE, 1, &pipeline_ci,
                                 nullptr, &graphics_pipeline) != VK_SUCCESS) {
-    std::cout << "Fail";
+    throw std::runtime_error("Failed to make graphics pipeline");
   };
 
   std::cout << "Created Pipeline" << std::endl;
