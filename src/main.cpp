@@ -197,19 +197,27 @@ VkShaderModule create_shader_module(VkDevice device,
   shader_ci.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
   shader_ci.codeSize = shader_code.size();
   shader_ci.pCode = reinterpret_cast<const uint32_t *>(shader_code.data());
-  VkShaderModule module;
-  vkCreateShaderModule(device, &shader_ci, nullptr, &module);
+  VkShaderModule smodule;
+  vkCreateShaderModule(device, &shader_ci, nullptr, &smodule);
 
-  return module;
+  return smodule;
 }
 
 void recordCommand(VkCommandBuffer buffer, uint32_t img_idx,
                    VkRenderPass render_pass, VkFramebuffer *frame_buffers,
                    VkExtent2D extent, VkPipeline graphics_pipeline) {
+
+  // std::cout << "Record: Make Begin Info" << std::endl;
+
   VkCommandBufferBeginInfo begin_info;
   begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-  vkBeginCommandBuffer(buffer, &begin_info);
 
+  // std::cout << "Record: Beginning Command Buffer" << std::endl;
+  if (vkBeginCommandBuffer(buffer, &begin_info) != VK_SUCCESS) {
+    throw std::runtime_error("Failed to begin command buffer");
+  };
+
+  // std::cout << "Record: Create Render Pass Info" << std::endl;
   VkRenderPassBeginInfo render_pass_info{};
   render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
   render_pass_info.renderPass = render_pass;
@@ -221,7 +229,10 @@ void recordCommand(VkCommandBuffer buffer, uint32_t img_idx,
   render_pass_info.clearValueCount = 1;
   render_pass_info.pClearValues = &clear_color;
 
+  // std::cout << "Record: Begin Render Pass" << std::endl;
   vkCmdBeginRenderPass(buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+
+  // std::cout << "Record: Bind Pipeline" << std::endl;
   vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline);
 
   vkCmdDraw(buffer, 3, 1, 0, 0);
@@ -258,6 +269,7 @@ int main() {
   app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
   app_info.apiVersion = VK_API_VERSION_1_0;
 
+  /** Create Instance */
   VkInstanceCreateInfo inst_create_info{};
   inst_create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
   inst_create_info.pApplicationInfo = &app_info;
@@ -270,17 +282,22 @@ int main() {
   }
 
   // Extensions for instance
-  uint32_t glfw_ext_cn = 0;
+  uint32_t glfw_ext_cnt = 0;
   const char **glfw_ext;
 
-  glfw_ext = glfwGetRequiredInstanceExtensions(&glfw_ext_cn);
+  glfw_ext = glfwGetRequiredInstanceExtensions(&glfw_ext_cnt);
 
-  inst_create_info.enabledExtensionCount = glfw_ext_cn;
-  inst_create_info.ppEnabledExtensionNames = glfw_ext;
+  std::vector<const char *> extensions(glfw_ext, glfw_ext + glfw_ext_cnt);
+
+  if (enable_validation_layers) {
+    extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+  }
+
+  inst_create_info.enabledExtensionCount =
+      static_cast<uint32_t>(extensions.size());
+  inst_create_info.ppEnabledExtensionNames = extensions.data();
 
   std::cout << "GLFW Extensions: " << *glfw_ext << std::endl;
-
-  inst_create_info.enabledLayerCount = 0;
 
   vkCreateInstance(&inst_create_info, nullptr, &main_vk);
 
@@ -333,7 +350,7 @@ int main() {
 
   // Make the damn device
   VkDeviceCreateInfo log_dev_create_info{};
-  log_dev_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+  log_dev_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
   log_dev_create_info.pQueueCreateInfos = q_create_infos.data();
   log_dev_create_info.queueCreateInfoCount = 1;
   log_dev_create_info.pEnabledFeatures = &dev_features;
@@ -445,15 +462,6 @@ int main() {
 
   /** Make Render Pass */
 
-  // Subpass dependency
-  VkSubpassDependency dep{};
-  dep.srcSubpass = VK_SUBPASS_EXTERNAL;
-  dep.dstSubpass = 0;
-  dep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-  dep.srcAccessMask = 0;
-  dep.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-  dep.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-
   VkAttachmentDescription color_attachment{};
   color_attachment.format = swap_chain_image_format;
   color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -472,6 +480,14 @@ int main() {
   subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
   subpass.colorAttachmentCount = 1;
   subpass.pColorAttachments = &color_attach_ref;
+  // Subpass dependency
+  VkSubpassDependency dep{};
+  dep.srcSubpass = VK_SUBPASS_EXTERNAL;
+  dep.dstSubpass = 0;
+  dep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+  dep.srcAccessMask = 0;
+  dep.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+  dep.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
   VkRenderPass render_pass;
   VkRenderPassCreateInfo render_pass_ci{};
@@ -483,7 +499,10 @@ int main() {
   render_pass_ci.dependencyCount = 1;
   render_pass_ci.pDependencies = &dep;
 
-  vkCreateRenderPass(log_dev, &render_pass_ci, nullptr, &render_pass);
+  if (vkCreateRenderPass(log_dev, &render_pass_ci, nullptr, &render_pass) !=
+      VK_SUCCESS) {
+    throw std::runtime_error("Failed to create render pass");
+  }
 
   std::cout << "Created Render Pass" << std::endl;
 
@@ -509,22 +528,28 @@ int main() {
   VkPipelineShaderStageCreateInfo shade_stages_cis[] = {vert_shader_ci,
                                                         frag_shader_ci};
 
+  std::cout << "Pipeline: Recorded Shaders" << std::endl;
+
   // Vertex Input
+  // Why must this cause so many fucking problems
   VkPipelineVertexInputStateCreateInfo vertex_input_ci;
   vertex_input_ci.sType =
       VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
   vertex_input_ci.vertexBindingDescriptionCount = 0;
-  // vertex_input_ci.pVertexBindingDescriptions = nullptr;
+  vertex_input_ci.pVertexBindingDescriptions = nullptr;
   vertex_input_ci.vertexAttributeDescriptionCount = 0;
-  // vertex_input_ci.pVertexAttributeDescriptions = nullptr;
+  vertex_input_ci.pVertexAttributeDescriptions = nullptr;
+  vertex_input_ci.flags = 0;
+
+  std::cout << "Pipeline: Set up Vertex Input State" << std::endl;
 
   // Dynamic State
-  VkPipelineDynamicStateCreateInfo dynamic_ci{};
-  dynamic_ci.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-  dynamic_ci.dynamicStateCount = 0;
-  dynamic_ci.pDynamicStates = nullptr;
-
-  VkDynamicState dynamic;
+  // VkPipelineDynamicStateCreateInfo dynamic_ci{};
+  // dynamic_ci.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+  // dynamic_ci.dynamicStateCount = 0;
+  // dynamic_ci.pDynamicStates = nullptr;
+  //
+  // VkDynamicState dynamic;
 
   // Input Assembly
   VkPipelineInputAssemblyStateCreateInfo input_assembly_ci{};
@@ -532,6 +557,8 @@ int main() {
       VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
   input_assembly_ci.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
   input_assembly_ci.primitiveRestartEnable = VK_FALSE;
+
+  std::cout << "Pipeline: Set up Input Assembly" << std::endl;
 
   // Viewport
   VkViewport viewport{};
@@ -553,6 +580,7 @@ int main() {
   viewport_state_ci.pViewports = &viewport;
   viewport_state_ci.scissorCount = 1;
   viewport_state_ci.pScissors = &scissor;
+  std::cout << "Pipeline: Set up Viewport (not dynamic)" << std::endl;
 
   // Rasterizer
   VkPipelineRasterizationStateCreateInfo rasterizer_ci{};
@@ -568,6 +596,7 @@ int main() {
   rasterizer_ci.depthBiasConstantFactor = 0.0f;
   rasterizer_ci.depthBiasClamp = 0.0f;
   rasterizer_ci.depthBiasSlopeFactor = 0.0f;
+  std::cout << "Pipeline: Set up Rasterizer Create Info" << std::endl;
 
   // Multisampling
   VkPipelineMultisampleStateCreateInfo multisampling_ci{};
@@ -579,6 +608,7 @@ int main() {
   multisampling_ci.pSampleMask = nullptr;            // Optional
   multisampling_ci.alphaToCoverageEnable = VK_FALSE; // Optional
   multisampling_ci.alphaToOneEnable = VK_FALSE;      // Optional
+  std::cout << "Pipeline: Set up Multisampling Create Info" << std::endl;
 
   VkPipelineColorBlendAttachmentState color_blend_attachment{};
   color_blend_attachment.colorWriteMask =
@@ -593,6 +623,7 @@ int main() {
   // color_blend_attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
   // color_blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
   // color_blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
+  std::cout << "Pipeline: Set up Color Blend Attachment State" << std::endl;
 
   VkPipelineColorBlendStateCreateInfo color_blend_ci{};
   color_blend_ci.sType =
@@ -605,6 +636,7 @@ int main() {
   color_blend_ci.blendConstants[1] = 0.0f;
   color_blend_ci.blendConstants[2] = 0.0f;
   color_blend_ci.blendConstants[3] = 0.0f;
+  std::cout << "Pipeline: Set up Color Blend State Create Info" << std::endl;
 
   // Pipeline Layout (empty rn)
   VkPipelineLayout pipeline_layout;
@@ -618,6 +650,7 @@ int main() {
                              &pipeline_layout) != VK_SUCCESS) {
     throw std::runtime_error("Failed to make pipeline layout");
   }
+  std::cout << "Pipeline: Set up Pipeline Layout" << std::endl;
 
   VkGraphicsPipelineCreateInfo pipeline_ci{};
   pipeline_ci.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -630,10 +663,11 @@ int main() {
   pipeline_ci.pMultisampleState = &multisampling_ci;
   pipeline_ci.pDepthStencilState = nullptr;
   pipeline_ci.pColorBlendState = &color_blend_ci;
-  pipeline_ci.pDynamicState = &dynamic_ci;
+  // pipeline_ci.pDynamicState = &dynamic_ci;
   pipeline_ci.layout = pipeline_layout;
   pipeline_ci.renderPass = render_pass;
   pipeline_ci.subpass = 0;
+  pipeline_ci.basePipelineHandle = VK_NULL_HANDLE;
 
   VkPipeline graphics_pipeline;
   if (vkCreateGraphicsPipelines(log_dev, VK_NULL_HANDLE, 1, &pipeline_ci,
@@ -668,7 +702,10 @@ int main() {
   command_pool_ci.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
   command_pool_ci.queueFamilyIndex = qf_indicies.graphics_qf.value();
 
-  vkCreateCommandPool(log_dev, &command_pool_ci, nullptr, &command_pool);
+  if (vkCreateCommandPool(log_dev, &command_pool_ci, nullptr, &command_pool) !=
+      VK_SUCCESS) {
+    throw std::runtime_error("Failed to create command pool");
+  }
   std::cout << "Created Command Pool" << std::endl;
 
   VkCommandBuffer command_buffer;
@@ -678,7 +715,10 @@ int main() {
   alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
   alloc_info.commandBufferCount = 1;
 
-  vkAllocateCommandBuffers(log_dev, &alloc_info, &command_buffer);
+  if (vkAllocateCommandBuffers(log_dev, &alloc_info, &command_buffer) !=
+      VK_SUCCESS) {
+    throw std::runtime_error("Failed to allocate command buffers");
+  };
   std::cout << "Allocated Command Buffer" << std::endl;
 
   /** Create Sync Objects */
@@ -703,18 +743,23 @@ int main() {
     glfwPollEvents();
 
     /** Draw Frame */
+    // std::cout << "Loop: Drawing Frame" << std::endl;
     vkWaitForFences(log_dev, 1, &in_flight_fnce, VK_TRUE, UINT64_MAX);
     vkResetFences(log_dev, 1, &in_flight_fnce);
 
+    // std::cout << "Loop: Getting Image Index" << std::endl;
     uint32_t img_idx;
     vkAcquireNextImageKHR(log_dev, swap_chain, UINT64_MAX, img_available_smph,
                           VK_NULL_HANDLE, &img_idx);
 
+    // std::cout << "Loop: Resetting Command Buffer" << std::endl;
     vkResetCommandBuffer(command_buffer, 0);
 
-    recordCommand(command_buffer, 0, render_pass, sc_frame_buffers.data(),
+    // std::cout << "Loop: Recording Command" << std::endl;
+    recordCommand(command_buffer, img_idx, render_pass, sc_frame_buffers.data(),
                   swap_chain_extent, graphics_pipeline);
 
+    // std::cout << "Loop: Creating Submit Info" << std::endl;
     VkSubmitInfo submit_info{};
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
